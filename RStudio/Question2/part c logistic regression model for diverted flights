@@ -1,0 +1,70 @@
+# (c) Fit logistic regression model for diverted flights
+# Prepare features for logistic regression
+# Example: Use DepHour, scheduled times, airport coordinates, carrier information, etc.
+
+flights_usa <- flights_with_plane_info %>%
+  inner_join(airports_df, by = c("Origin" = "iata")) %>%
+  mutate(OriginCountry = country) %>%
+  inner_join(airports_df, by = c("Dest" = "iata")) %>%
+  mutate(DestCountry = country.y) %>%
+  filter(OriginCountry == "USA" & DestCountry == "USA") %>%
+  select(-c(country.x, country.y))
+
+# Select relevant features for logistic regression model
+features <- c("Year", "Month", "DayOfWeek", "CRSDepTime", "CRSArrTime", 
+              "Distance", "UniqueCarrier", "Diverted")
+
+flights_selected <- flights_usa %>% select(all_of(features))
+
+# Convert CRSArrTime to hh:mm format
+flights_selected$CRSArrTime <- sprintf("%s", flights_selected$CRSArrTime)  # Ensure four-digit format
+flights_selected$CRSArrTime <- sub("(..)(..)$", "\\1:\\2", flights_selected$CRSArrTime)  # Insert ":" in the middle
+
+# Convert CRSArrTime to POSIXct (datetime) format
+flights_selected$CRSArrTime <- as.POSIXct(flights_selected$CRSArrTime, format = "%H:%M")
+
+# Convert CRSDepTime and CRSArrTime to numeric format (e.g., minutes past midnight)
+flights_selected$CRSDepTime <- as.numeric(format(flights_selected$CRSDepTime, "%H%M"))
+flights_selected$CRSArrTime <- as.numeric(format(flights_selected$CRSArrTime, "%H%M"))
+
+# List to store coefficient data for each year
+coefficients_list <- list()
+
+# Iterate over each unique year in the dataset
+unique_years <- unique(flights_selected$Year)
+
+for (year in unique_years) {
+  # Subset data for the current year
+  data_year <- filter(flights_selected, Year == year)
+  
+  # Fit logistic regression model for the probability of diverted flights
+  model <- glm(Diverted ~ ., data = data_year, family = "binomial")
+  
+  # Extract coefficients and their standard errors
+  coefficients <- coef(summary(model))
+  
+  # Create a data frame with coefficients and associated variables
+  coefficients_df <- as.data.frame(coefficients)
+  coefficients_df$Variable <- rownames(coefficients)
+  coefficients_df$Year <- year
+  
+  # Store coefficients data in the list
+  coefficients_list[[as.character(year)]] <- coefficients_df
+}
+
+# Combine coefficients data frames from the list into a single data frame
+coefficients_combined <- bind_rows(coefficients_list, .id = "Year")
+
+# Remove intercept variable from the data frame
+coefficients_combined <- coefficients_combined %>%
+  filter(Variable != "(Intercept)")
+
+# Plotting coefficients across years
+ggplot(coefficients_combined, aes(x = Variable, y = Estimate, fill = Year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Logistic Regression Coefficients Across Years",
+       x = "Variable",
+       y = "Coefficient Estimate",
+       fill = "Year") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
