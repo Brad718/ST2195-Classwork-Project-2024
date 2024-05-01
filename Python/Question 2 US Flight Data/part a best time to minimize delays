@@ -1,0 +1,14 @@
+import pandas as pd
+
+# Load data for the selected years (1995-2004)
+years = range(1995, 2005)
+data_frames = []
+
+for year in years:
+    file_path = f"{year}.csv"
+    # Sample 5% of the data for each year
+    df = pd.read_csv(file_path).sample(frac=0.05, random_state=42)
+    data_frames.append(df)
+
+# Concatenate all data frames into a single one
+df = pd.concat(data_frames, ignore_index=True)    
