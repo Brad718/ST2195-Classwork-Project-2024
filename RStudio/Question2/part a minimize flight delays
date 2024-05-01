@@ -1,0 +1,62 @@
+# (a) Identify best times and days of the week to minimize delays each year
+
+flights_with_plane_info$CRSDepTime <- as.character(flights_with_plane_info$CRSDepTime)
+
+# Convert CRSDepTime to hh:mm format
+flights_with_plane_info$CRSDepTime <- sprintf("%s", flights_with_plane_info$CRSDepTime)  # Ensure four-digit format
+flights_with_plane_info$CRSDepTime <- sub("(..)(..)$", "\\1:\\2", flights_with_plane_info$CRSDepTime)  # Insert ":" in the middle
+
+# Convert CRSDepTime to POSIXct (datetime) format
+flights_with_plane_info$CRSDepTime <- as.POSIXct(flights_with_plane_info$CRSDepTime, format = "%H:%M")
+
+# Filter out rows with missing ArrDelay
+flights_filtered <- flights_with_plane_info[!is.na(flights_with_plane_info$ArrDelay), ]
+
+# Extract hour from CRSDepTime and create DepHour column
+flights_filtered$DepHour <- hour(flights_filtered$CRSDepTime)
+
+flights_filtered <- flights_filtered %>%
+  filter(!is.na(ArrDelay), !is.na(DepHour))
+
+# Group by Year, DepHour, and DayOfWeek, then calculate mean arrival delay
+mean_delays <- flights_filtered %>%
+  group_by(Year, DepHour, DayOfWeek) %>%
+  summarise(AvgArrDelay = mean(ArrDelay, na.rm = TRUE)) %>%
+  ungroup()
+
+# Define a vector of day names in the correct order
+day_names <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+
+# Convert numerical DayOfWeek to day names using a named vector
+mean_delays <- mean_delays %>%
+  mutate(DayOfWeek = day_names[DayOfWeek])
+
+# Visualize mean arrival delays
+library(ggplot2)
+
+# Plotting mean arrival delay by hour and day of week
+ggplot(mean_delays, aes(x = DepHour, y = AvgArrDelay, color = DayOfWeek)) +
+  geom_line() +
+  labs(title = "Mean Arrival Delay by Hour and Day of Week",
+       x = "Hour of Departure",
+       y = "Mean Arrival Delay (minutes)",
+       color = "Day of Week") +
+  theme_minimal()
+
+# Plot mean arrival delay by hour (barplot)
+ggplot(mean_delays, aes(x = factor(DepHour), y = AvgArrDelay)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Mean Arrival Delay by Hour",
+       x = "Hour of Departure",
+       y = "Mean Arrival Delay (minutes)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot mean arrival delay by day of the week
+ggplot(mean_delays, aes(x = reorder(DayOfWeek, -AvgArrDelay), y = AvgArrDelay)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  labs(title = "Mean Arrival Delay by Day of the Week",
+       x = "Day of the Week",
+       y = "Mean Arrival Delay (minutes)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
