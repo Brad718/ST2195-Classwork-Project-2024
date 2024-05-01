@@ -1,0 +1,33 @@
+
+# Function to read and sample data from a CSV file
+read_and_sample_data <- function(file_path, sample_frac = 0.005) {
+  df <- read.csv(file_path)
+  df_sampled <- df %>%
+    sample_frac(sample_frac, replace = FALSE, .seed = 42)  # Sample 5% of the data
+  return(df_sampled)
+}
+
+# Load and sample flight data for each year (1996-2005)
+years <- 1996:2005
+data_frames <- lapply(years, function(year) {
+  file_path <- file.path(folder_path, paste0(year, ".csv"))
+  read_and_sample_data(file_path)
+})
+
+# Combine sampled data frames into a single data frame
+flights_df <- bind_rows(data_frames)
+
+# Read supplementary information files
+airports_df <- read.csv(file.path(folder_path, "airports.csv"))
+carriers_df <- read.csv(file.path(folder_path, "carriers.csv"))
+plane_data_df <- read.csv(file.path(folder_path, "plane-data.csv"))
+
+# Merge flight data with plane data based on TailNum to get aircraft year
+flights_with_plane_info <- flights_df %>%
+  left_join(plane_data_df, by = c("TailNum" = "tailnum")) %>%
+  mutate(AircraftYear = as.integer(year))
+
+year_from_issue_date <- as.integer(sapply(strsplit(flights_with_plane_info$issue_date, "/"), tail, n = 1))
+
+# Add the extracted year as a new column 'issue_year' to the dataframe
+flights_with_plane_info$AircraftYear <- year_from_issue_date
