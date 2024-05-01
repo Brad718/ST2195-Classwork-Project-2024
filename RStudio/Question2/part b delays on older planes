@@ -1,0 +1,40 @@
+# (b) Evaluate delay trends for older planes
+
+# Filter rows with missing manufacturing years
+flights_filtered <- flights_filtered %>%
+  filter(!is.na(AircraftYear))
+
+# Calculate planeAge as the difference between Year and year
+flights_filtered <- flights_filtered %>%
+  mutate(planeAge = Year - AircraftYear)
+
+# Filter out rows with NA or negative planeAge values
+flights_filtered <- flights_filtered %>%
+  filter(!is.na(planeAge), planeAge >= 0)
+
+# Plot planeAge vs. ArrDelay (scatterplot)
+ggplot(flights_filtered, aes(x = planeAge, y = ArrDelay)) +
+  geom_point(alpha = 0.5) +  # Add points with transparency
+  labs(title = "Scatterplot of Plane Age vs. Arrival Delay",
+       x = "Plane Age (Years)",
+       y = "Arrival Delay (minutes)") +
+  theme_minimal()
+
+# Fit a linear regression model
+model <- lm(ArrDelay ~ planeAge, data = flights_filtered)
+
+# Print model summary
+summary(model)
+
+# Calculate R-squared
+rsquared <- summary(model)$r.squared
+cat("R-squared:", rsquared, "\n")
+
+# Create a scatterplot with regression line
+ggplot(flights_filtered, aes(x = planeAge, y = ArrDelay)) +
+  geom_point(alpha = 0.5) +  # Add points with transparency
+  geom_smooth(method = "lm", se = FALSE) +  # Add regression line without confidence interval
+  labs(title = "Regression of Plane Age vs. Arrival Delay",
+       x = "Plane Age (Years)",
+       y = "Arrival Delay (minutes)") +
+  theme_minimal()
