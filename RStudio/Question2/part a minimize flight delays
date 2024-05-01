@@ -1,3 +1,6 @@
+Part 2: US Flight Data
+Question (a): What are the best times and days of the week to minimize delays each year?
+
 # (a) Identify best times and days of the week to minimize delays each year
 
 flights_with_plane_info$CRSDepTime <- as.character(flights_with_plane_info$CRSDepTime)
